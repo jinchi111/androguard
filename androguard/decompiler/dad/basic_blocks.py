@@ -26,9 +26,8 @@ logger = logging.getLogger('dad.basic_blocks')
 
 
 class BasicBlock(Node):
-
     def __init__(self, name, block_ins):
-        super(BasicBlock, self).__init__(name)
+        super().__init__(name)
         self.ins = block_ins
         self.ins_range = None
         self.loc_ins = None
@@ -40,7 +39,7 @@ class BasicBlock(Node):
 
     def get_loc_with_ins(self):
         if self.loc_ins is None:
-            self.loc_ins = zip(range(*self.ins_range), self.ins)
+            self.loc_ins = list(zip(range(*self.ins_range), self.ins))
         return self.loc_ins
 
     def remove_ins(self, loc, ins):
@@ -65,9 +64,8 @@ class BasicBlock(Node):
 
 
 class StatementBlock(BasicBlock):
-
     def __init__(self, name, block_ins):
-        super(StatementBlock, self).__init__(name, block_ins)
+        super().__init__(name, block_ins)
         self.type.is_stmt = True
 
     def visit(self, visitor):
@@ -78,9 +76,8 @@ class StatementBlock(BasicBlock):
 
 
 class ReturnBlock(BasicBlock):
-
     def __init__(self, name, block_ins):
-        super(ReturnBlock, self).__init__(name, block_ins)
+        super().__init__(name, block_ins)
         self.type.is_return = True
 
     def visit(self, visitor):
@@ -91,9 +88,8 @@ class ReturnBlock(BasicBlock):
 
 
 class ThrowBlock(BasicBlock):
-
     def __init__(self, name, block_ins):
-        super(ThrowBlock, self).__init__(name, block_ins)
+        super().__init__(name, block_ins)
         self.type.is_throw = True
 
     def visit(self, visitor):
@@ -104,9 +100,8 @@ class ThrowBlock(BasicBlock):
 
 
 class SwitchBlock(BasicBlock):
-
     def __init__(self, name, switch, block_ins):
-        super(SwitchBlock, self).__init__(name, block_ins)
+        super().__init__(name, block_ins)
         self.switch = switch
         self.cases = []
         self.default = None
@@ -120,14 +115,14 @@ class SwitchBlock(BasicBlock):
         return visitor.visit_switch_node(self)
 
     def copy_from(self, node):
-        super(SwitchBlock, self).copy_from(node)
+        super().copy_from(node)
         self.cases = node.cases[:]
         self.switch = node.switch[:]
 
     def update_attribute_with(self, n_map):
-        super(SwitchBlock, self).update_attribute_with(n_map)
+        super().update_attribute_with(n_map)
         self.cases = [n_map.get(n, n) for n in self.cases]
-        for node1, node2 in n_map.iteritems():
+        for node1, node2 in n_map.items():
             if node1 in self.node_to_case:
                 self.node_to_case[node2] = self.node_to_case.pop(node1)
 
@@ -143,15 +138,14 @@ class SwitchBlock(BasicBlock):
 
 
 class CondBlock(BasicBlock):
-
     def __init__(self, name, block_ins):
-        super(CondBlock, self).__init__(name, block_ins)
+        super().__init__(name, block_ins)
         self.true = None
         self.false = None
         self.type.is_cond = True
 
     def update_attribute_with(self, n_map):
-        super(CondBlock, self).update_attribute_with(n_map)
+        super().update_attribute_with(n_map)
         self.true = n_map.get(self.true, self.true)
         self.false = n_map.get(self.false, self.false)
 
@@ -172,8 +166,7 @@ class CondBlock(BasicBlock):
         return '%d-If(%s)' % (self.num, self.name)
 
 
-class Condition(object):
-
+class Condition:
     def __init__(self, cond1, cond2, isand, isnot):
         self.cond1 = cond1
         self.cond2 = cond2
@@ -210,9 +203,8 @@ class Condition(object):
 
 
 class ShortCircuitBlock(CondBlock):
-
     def __init__(self, name, cond):
-        super(ShortCircuitBlock, self).__init__(name, None)
+        super().__init__(name, None)
         self.cond = cond
 
     def get_ins(self):
@@ -232,9 +224,8 @@ class ShortCircuitBlock(CondBlock):
 
 
 class LoopBlock(CondBlock):
-
     def __init__(self, name, cond):
-        super(LoopBlock, self).__init__(name, None)
+        super().__init__(name, None)
         self.cond = cond
 
     def get_ins(self):
@@ -253,7 +244,7 @@ class LoopBlock(CondBlock):
         return self.cond.visit_cond(visitor)
 
     def update_attribute_with(self, n_map):
-        super(LoopBlock, self).update_attribute_with(n_map)
+        super().update_attribute_with(n_map)
         self.cond.update_attribute_with(n_map)
 
     def __str__(self):
@@ -269,9 +260,8 @@ class LoopBlock(CondBlock):
 
 
 class TryBlock(BasicBlock):
-
     def __init__(self, node):
-        super(TryBlock, self).__init__('Try-%s' % node.name, None)
+        super().__init__('Try-%s' % node.name, None)
         self.try_start = node
         self.catch = []
 
@@ -291,18 +281,17 @@ class TryBlock(BasicBlock):
         visitor.visit_try_node(self)
 
     def __str__(self):
-        return 'Try(%s)[%s]' % (self.name, self.catch)
+        return 'Try({})[{}]'.format(self.name, self.catch)
 
 
 class CatchBlock(BasicBlock):
-
     def __init__(self, node):
         first_ins = node.ins[0]
         self.exception_ins = None
         if isinstance(first_ins, MoveExceptionExpression):
             self.exception_ins = first_ins
             node.ins.pop(0)
-        super(CatchBlock, self).__init__('Catch-%s' % node.name, node.ins)
+        super().__init__('Catch-%s' % node.name, node.ins)
         self.catch_start = node
         self.catch_type = node.catch_type
 
@@ -337,7 +326,7 @@ def build_node_from_block(block, vmap, gen_ret, exception_type=None):
             fillarray = block.get_special_ins(idx)
             lins.append(_ins(ins, vmap, fillarray))
         # invoke-kind[/range]
-        elif (0x6e <= opcode <= 0x72 or 0x74 <= opcode <= 0x78):
+        elif 0x6e <= opcode <= 0x72 or 0x74 <= opcode <= 0x78:
             lins.append(_ins(ins, vmap, gen_ret))
         # filled-new-array[/range]
         elif 0x24 <= opcode <= 0x25:
